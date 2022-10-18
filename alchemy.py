@@ -74,14 +74,14 @@ def get_all_active_users():
     else: 
         return jsonify('No Users found'), 404
 
-
-@app.route('/user/update', methods=['POST', 'PUT', 'PATCH'])
-def update_user():
+# breaks if duplicate email is put in. 
+# also breaks if invalid user_id is put in 
+@app.route('/user/update/<user_id>', methods=['POST', 'PUT', 'PATCH'])
+def update_user(user_id):
     post_data = request.json
     if not post_data:
        post_data = request.form
 
-    user_id = post_data.get('user_id')
     first_name = post_data.get('first_name')
     last_name = post_data.get('last_name')
     email = post_data.get('email')
@@ -91,46 +91,62 @@ def update_user():
     org_id = post_data.get('org_id')
     active = post_data.get('active')
 
-    if active:
-        user_data = None
+    user_data = db.session.query(Users).filter(Users.user_id == user_id).first()
+
+    if user_data:
+        user_data.user_id = user_id
+        if first_name is not None:
+            user_data.first_name = first_name
+        if last_name is not None:
+            user_data.last_name = last_name
+        if email is not None:
+            user_data.email = email
+        if phone is not None:
+            user_data.phone = phone
+        if city is not None:
+            user_data.city = city
+        if state is not None:
+            user_data.state = state
+        if org_id is not None:
+            user_data.org_id = org_id
+        if active is not None:
+            user_data.active = active
+
+        db.session.commit()
         user_data = db.session.query(Users).filter(Users.user_id == user_id).first()
 
-        if user_data:
-            user_data.user_id = user_id
-            if first_name is not None:
-                user_data.first_name = first_name
-            if last_name is not None:
-                user_data.last_name = last_name
-            if email is not None:
-                user_data.email = email
-            if phone is not None:
-                user_data.phone = phone
-            if city is not None:
-                user_data.city = city
-            if state is not None:
-                user_data.state = state
-            if org_id is not None:
-                user_data.org_id = org_id
-            if active is not None:
-                user_data.active = active
 
-            db.session.commit()
+        user_obj = {
+          'user_id': user_data.user_id,
+          'first_name':user_data.first_name,
+          'last_name':user_data.last_name,
+          'email':user_data.email,
+          'phone':user_data.phone,
+          'city':user_data.city,
+          'state':user_data.state,
+          'org_id':user_data.org_id,
+          'active':user_data.active
+        }
+        
+        return jsonify(user_obj), 200
+    
+    else:
+        return jsonify('No User Found'), 404
 
-            user_obj = {
-              'user_id': user_id,
-              'first_name':first_name,
-              'last_name':last_name,
-              'email':email,
-              'phone':phone,
-              'city':city,
-              'state':state,
-              'org_id':org_id,
-              'active':active,
-            }
-            
-            return jsonify(user_obj), 200
-        else:
-            return jsonify('User Not Found'), 404
+
+@app.route('/user/delete', methods=['DELETE'])
+def delete_user():
+    post_data = request.json
+    if not post_data:
+        post_data = request.form
+
+    user_id = post_data.get('user_id')
+    user_data = db.session.query(Users).filter(Users.user_id == user_id).first()
+    username = f'{user_data.first_name} {user_data.last_name}'
+    db.session.delete(user_data)
+    db.session.commit()
+
+    return jsonify(f'User: {username} deleted'), 200
             
 
 @app.route('/org/add', methods=['POST'])
@@ -177,22 +193,72 @@ def get_all_active_orgs():
         return jsonify('No Organizations found'), 404
 
 
+@app.route('/org/update/<org_id>', methods=['POST', 'PUT', 'PATCH'])
+def update_org(org_id):
+    post_data = request.json
+    if not post_data:
+       post_data = request.form
 
+    name = post_data.get('name')
+    phone = post_data.get('phone')
+    city = post_data.get('city')
+    state = post_data.get('state')
+    active = post_data.get('active')
 
-# user_id,first_name,last_name,email,phone,city,state,org_id,active
+    org_data = db.session.query(Organizations).filter(Organizations.org_id == org_id).first()
+
+    if org_data:
+        org_data.org_id = org_id
+        if name is not None:
+            org_data.name = name
+        if phone is not None:
+            org_data.phone = phone
+        if city is not None:
+            org_data.city = city
+        if state is not None:
+            org_data.state = state
+        if active is not None:
+            org_data.active = active
+
+        db.session.commit()
+
+        org_data = db.session.query(Organizations).filter(Organizations.org_id == org_id).first()
+        org_obj = {
+          'name': org_data.name,
+          'phone': org_data.phone,
+          'city': org_data.city,
+          'state': org_data.state,
+          'active': org_data.active
+        }
+        
+        return jsonify(org_obj), 200
+
+@app.route('/org/delete', methods=['DELETE'])
+def delete_org():
+    post_data = request.json
+    if not post_data:
+        post_data = request.form
+
+    org_id = post_data.get('org_id')
+    org_data = db.session.query(Organizations).filter(Organizations.org_id == org_id).first()
+    org_name = org_data.name
+    db.session.delete(org_data)
+    db.session.commit()
+
+    return jsonify(f'Organization: {org_name} deleted'), 200
 
 '''
 TODO: CRUDDA
 Users
 (√)Get all
-()Update
+(√)Update
 ()Delete
 ()Deactivate
 ()Activate
 
 Organizations:
 (√)Get all
-()Update
+(√)Update
 ()Delete
 ()Deactivate
 ()Activate
